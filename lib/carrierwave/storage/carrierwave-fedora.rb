@@ -5,6 +5,8 @@ module CarrierWave
     class Fedora < Abstract
 
       def initialize(uploader)
+        @options[:fedora_config] = config_file
+
         @fedora_config = parse_config(@options[:fedora_config])
         @host = @fedora_config[:host]
         @port = @fedora_config[:port]
