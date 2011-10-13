@@ -33,7 +33,7 @@ module CarrierWave
 
       def fedora_object
         # @object_id = instance.uuid || @custom_pid || path()
-        object = fedora.find(@object_id)
+        object = fedora.find('carrierwavetest:1')
         saved_object = object.save
         # carrierwave_versions = object.datastreams['carrierwave_versions']
         # if carrierwave_versions.new?
