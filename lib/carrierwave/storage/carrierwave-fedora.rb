@@ -2,7 +2,7 @@ require "carrierwave-fedora/version"
 
 module CarrierWave
   module Storage
-    class Fedora
+    class Fedora < Abstract
 
       def initialize(uploader)
         @fedora_config = parse_config(@options[:fedora_config])
