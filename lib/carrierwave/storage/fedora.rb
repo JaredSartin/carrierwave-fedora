@@ -39,9 +39,18 @@ module CarrierWave
         print "ds SAVED"
       end
 
-      def retrieve!(identifier) # version/datastream/style)
-        # look up Fedora object by identifier
-        # open version/datastream on object
+      def identifier
+        uploader.filename
+      end
+
+      def retrieve!(identifier)
+        print "Get that file"
+        ds = fedora_object.datastreams[identifier]
+        file = Tempfile.new(identifier, 'w')
+        file.binmode
+        file.write(ds.read)
+        file.rewind
+        file
       end
 
 
