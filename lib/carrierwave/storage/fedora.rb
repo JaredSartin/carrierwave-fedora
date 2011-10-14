@@ -4,22 +4,39 @@ module CarrierWave
   module Storage
     class Fedora < Abstract
 
-      def initialize(uploader)
-        @options[:fedora_config] = config_file
+      def print(message)
+        puts "*"*100
+        puts message
+        puts "*"*100
+      end
 
-        @fedora_config = parse_config(@options[:fedora_config])
+      def initialize(uploader)
+        @uploader = uploader
+
+        print "Initialize called"
+        @fedora_config = parse_config(config_file)
         @host = @fedora_config[:host]
         @port = @fedora_config[:port]
         @context = @fedora_config[:context]
+        @username = @fedora_config[:user]
+        @password = @fedora_config[:password]
+        @server_url = "http\://#{@host}\:#{@port}/#{@context}"
+        print "Initialize ended"
       end
       
-      def store!(file)
+      def store!(sanitized_file)
+        print "Store! called"
         # style/file type?
-        ds = fedora_object.datastreams["STREAMNAME"]
+        print uploader.model.uuid
+        ds = fedora_object.datastreams[sanitized_file.filename]
+        print "Created filestream"
         ds.controlGroup = 'M'
-        ds.file = file
-        ds.dsLabel = "Uploaded file: #{File.extname(file)}"
+        ds.file = ::File.new sanitized_file.file, 'r'
+        print "Creating Label"
+        ds.dsLabel = "Uploaded file: #{sanitized_file.extension}"
+        print "Label created"
         ds.save
+        print "ds SAVED"
       end
 
       def retrieve!(identifier) # version/datastream/style)
@@ -29,14 +46,20 @@ module CarrierWave
 
 
       def fedora
-        @@repo ||= Rubydora.connect url: @server_url, user: @fedora_config[:user], password: @fedora_config[:password] 
+        print "Building Fedora connection"
+        @@repo ||= Rubydora.connect url: @server_url, user: @username, password: @password 
+        p @@repo
+        print "Connection Built"
         @@repo
       end
 
       def fedora_object
-        # @object_id = instance.uuid || @custom_pid || path()
-        object = fedora.find('carrierwavetest:1')
+        print "Finding/Creating object - First making the connection"
+        @object_id = uploader.model.uuid
+        object = fedora.find(@object_id)
         saved_object = object.save
+        p saved_object
+        print "Object found/created"
         # carrierwave_versions = object.datastreams['carrierwave_versions']
         # if carrierwave_versions.new?
         #   carrierwave_versions.controlGroup = 'M'
@@ -50,35 +73,48 @@ module CarrierWave
 
 
       # def setup!
-      #   FileUtils.cp(File.dirname(__FILE__) + "/../config/fedora.yml", config_file) unless config?
+      #   FileUtils.cp(::File.dirname(__FILE__) + "/../config/fedora.yml", config_file) unless config?
       # end
 
       def config_file
-        Rails.root.join("config", "fedora.yml").to_s
+        print 'config file beg'
+        save= Rails.root.join("config", "fedora.yml").to_s
+        print 'config file end'
+        save
       end
       
       def config?
-        File.file? config_file
+        ::File.file? config_file
       end
 
       private
       def parse_config config
+        print "Parse this s**this!"
         config = find_credentials(config).stringify_keys
-        (config[Rails.env] || config).symbolize_keys
+        config_junk = (config[Rails.env] || config).symbolize_keys
+        print 'Parse this shit END'
+        config_junk
       end
 
       def find_credentials config
+        print 'printing out config'
+        p config
+        print "find cred BEG"
         case config
-          when File
-            YAML.load_file(config.path)
+          when ::File
+            rtn = YAML.load_file(config.path)
           when String
-            YAML.load_file(config)
+            rtn = YAML.load_file(config)
           when Hash
-            config
+            rtn = config
           else
             raise ArgumentError, "Configuration settings are not a path, file, or hash."
         end
+        print "find cred END"
+
+        rtn
       end
     end
   end
 end
+
