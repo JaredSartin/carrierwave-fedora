@@ -13,7 +13,6 @@ module CarrierWave
       def initialize(uploader)
         @uploader = uploader
 
-        print "Initialize called"
         @fedora_config = parse_config(config_file)
         @host = @fedora_config[:host]
         @port = @fedora_config[:port]
@@ -25,50 +24,38 @@ module CarrierWave
       end
       
       def store!(sanitized_file)
-        print "Store! called"
         # style/file type?
-        print uploader.model.uuid
-        ds = fedora_object.datastreams[sanitized_file.filename]
-        print "Created filestream"
+        ds = new_fedora_object.datastreams[sanitized_file.filename]
         ds.controlGroup = 'M'
         ds.file = ::File.new sanitized_file.file, 'r'
-        print "Creating Label"
         ds.dsLabel = "Uploaded file: #{sanitized_file.extension}"
-        print "Label created"
         ds.save
-        print "ds SAVED"
       end
 
       def identifier
         uploader.filename
       end
 
-      def retrieve!(identifier)
-        print "Get that file"
-        ds = fedora_object.datastreams[identifier]
-        file = Tempfile.new(identifier, 'w')
+      def retrieve!(the_identifier)
+        print "Get that file #{the_identifier}"
+        ds = fedora_object.datastreams[the_identifier]
+        file = Tempfile.new(the_identifier)
         file.binmode
-        file.write(ds.read)
+        file.puts(ds.read)
         file.rewind
         file
       end
 
 
       def fedora
-        print "Building Fedora connection"
         @@repo ||= Rubydora.connect url: @server_url, user: @username, password: @password 
-        p @@repo
-        print "Connection Built"
         @@repo
       end
 
-      def fedora_object
-        print "Finding/Creating object - First making the connection"
+      def new_fedora_object
         @object_id = uploader.model.uuid
         object = fedora.find(@object_id)
-        saved_object = object.save
-        p saved_object
-        print "Object found/created"
+        object.save
         # carrierwave_versions = object.datastreams['carrierwave_versions']
         # if carrierwave_versions.new?
         #   carrierwave_versions.controlGroup = 'M'
@@ -77,19 +64,23 @@ module CarrierWave
         #   carrierwave_versions.mimeType = "text/plain"
         #   carrierwave_versions.save
         # end
-        saved_object
       end
 
+      def fedora_object
+        @object_id = uploader.model.uuid
+        p @object_id
+        object = fedora.find(@object_id)
+        
+        raise "object not found" if object.new?
+        object
+      end
 
       # def setup!
       #   FileUtils.cp(::File.dirname(__FILE__) + "/../config/fedora.yml", config_file) unless config?
       # end
 
       def config_file
-        print 'config file beg'
-        save= Rails.root.join("config", "fedora.yml").to_s
-        print 'config file end'
-        save
+        Rails.root.join("config", "fedora.yml").to_s
       end
       
       def config?
@@ -98,32 +89,24 @@ module CarrierWave
 
       private
       def parse_config config
-        print "Parse this s**this!"
         config = find_credentials(config).stringify_keys
-        config_junk = (config[Rails.env] || config).symbolize_keys
-        print 'Parse this shit END'
-        config_junk
+        (config[Rails.env] || config).symbolize_keys
       end
 
       def find_credentials config
-        print 'printing out config'
-        p config
-        print "find cred BEG"
         case config
           when ::File
-            rtn = YAML.load_file(config.path)
+            YAML.load_file(config.path)
           when String
-            rtn = YAML.load_file(config)
+            YAML.load_file(config)
           when Hash
-            rtn = config
+            config
           else
             raise ArgumentError, "Configuration settings are not a path, file, or hash."
         end
-        print "find cred END"
-
-        rtn
       end
     end
   end
 end
+
 
